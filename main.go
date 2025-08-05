@@ -3,7 +3,9 @@ package main
 import (
     "net/http"
     "sync"
-
+    "github.com/go-playground/validator/v10"
+    "strconv" 
+    "errors"
     "github.com/gin-gonic/gin"
 )
 
@@ -47,14 +49,18 @@ func postAlbums(c *gin.Context) {
     var newAlbum album
 
     if err := c.ShouldBindJSON(&newAlbum); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.JSON(http.StatusBadRequest, validationErrorResponse(err))
         return
     }
 
-    // Validate tags: no empty strings allowed
-    for _, tag := range newAlbum.Tags {
+    // Дополнительная проверка: пустые строки в tags
+    for i, tag := range newAlbum.Tags {
         if tag == "" {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "tags must not contain empty strings"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "Ошибка валидации": map[string]string{
+                    "Теги[" + strconv.Itoa(i) + "]": "не должны быть пустыми",
+                },
+            })
             return
         }
     }
@@ -62,10 +68,10 @@ func postAlbums(c *gin.Context) {
     albumsMutex.Lock()
     defer albumsMutex.Unlock()
 
-    // Check for duplicate ID
+    // Проверка на уникальность ID
     for _, a := range albums {
         if a.ID == newAlbum.ID {
-            c.JSON(http.StatusConflict, gin.H{"error": "album with this ID already exists"})
+            c.JSON(http.StatusConflict, gin.H{"Ошибка": "альбом с таким ID уже существует"})
             return
         }
     }
@@ -73,6 +79,8 @@ func postAlbums(c *gin.Context) {
     albums = append(albums, newAlbum)
     c.IndentedJSON(http.StatusCreated, newAlbum)
 }
+
+
 
 // getAlbumByID locates the album whose ID value matches the id parameter sent by the client.
 func getAlbumByID(c *gin.Context) {
@@ -87,5 +95,26 @@ func getAlbumByID(c *gin.Context) {
             return
         }
     }
-    c.IndentedJSON(http.StatusNotFound, gin.H{"error": "album not found"})
+    c.IndentedJSON(http.StatusNotFound, gin.H{"Ошибка": "альбом не найден"})
+}
+
+
+func validationErrorResponse(err error) gin.H {
+    var ve validator.ValidationErrors
+    if errors.As(err, &ve) {
+        out := make(map[string]string)
+        for _, fe := range ve {
+            field := fe.Field()
+            switch fe.Tag() {
+            case "required":
+                out[field] = "обязателен"
+            case "gt":
+                out[field] = "должен быть больше чем " + fe.Param()
+            default:
+                out[field] = "валиден"
+            }
+        }
+        return gin.H{"Ошибка валидации": out}
+    }
+    return gin.H{"Ошибка": err.Error()}
 }
