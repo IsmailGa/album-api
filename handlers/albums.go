@@ -65,6 +65,39 @@ func (h *AlbumHandler) PostAlbum(c *gin.Context) {
     c.JSON(http.StatusCreated, newAlbum)
 }
 
+func (h *AlbumHandler) UpdateAlbum(c *gin.Context) {
+    id := c.Param("id")
+    var updatedAlbum models.Album
+
+    if err := c.ShouldBindJSON(&updatedAlbum); err != nil {
+        c.JSON(http.StatusBadRequest, validationErrorResponse(err))
+        return
+    }
+
+    for i, tag := range updatedAlbum.Tags {
+        if tag == "" {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "validation_error": map[string]string{
+                    "tags[" + strconv.Itoa(i) + "]": "не должны быть пустыми",
+                },
+            })
+            return
+        }
+    }
+
+    err := h.service.UpdateAlbum(id, updatedAlbum)
+    if err != nil {
+        if err.Error() == "not found" {
+            c.JSON(http.StatusNotFound, gin.H{"error": "альбом не найден"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "ошибка при обновлении альбома"})
+        }
+        return
+    }
+
+    c.JSON(http.StatusOK, updatedAlbum)
+}
+
 func validationErrorResponse(err error) gin.H {
     var ve validator.ValidationErrors
     if errors.As(err, &ve) {
