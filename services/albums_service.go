@@ -24,3 +24,7 @@ func (s *AlbumService) GetAlbumByID(id string) (models.Album, error) {
 func (s *AlbumService) AddAlbum(album models.Album) error {
     return s.store.Add(album)
 }
+
+func (s *AlbumService) UpdateAlbum(id string, album models.Album) error {
+    return s.store.Update(id, album)
+}

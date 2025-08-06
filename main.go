@@ -17,6 +17,7 @@ func main() {
     r.GET("/albums", handler.GetAlbums)
     r.GET("/albums/:id", handler.GetAlbumByID)
     r.POST("/albums", handler.PostAlbum)
+    r.PUT("/albums/:id", handler.UpdateAlbum)
 
     r.Run(":8080")
 }

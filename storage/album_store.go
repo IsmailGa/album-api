@@ -48,3 +48,16 @@ func (s *AlbumStore) Add(album models.Album) error {
     s.albums = append(s.albums, album)
     return nil
 }
+
+
+func (s *AlbumStore) Update(id string, album models.Album) error {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    for i, a := range s.albums {
+        if a.ID == id {
+            s.albums[i] = album
+            return nil
+        }
+    }
+    return errors.New("not found")
+}
